@@ -27,6 +27,7 @@ default_table_access_method = 'orioledb'
 shared_buffers = '${SHARED_BUFFERS_MB}MB'
 max_connections = 200
 max_wal_size = '4GB'
+work_mem = '16MB'
 checkpoint_completion_target = 0.9
 EOF
 

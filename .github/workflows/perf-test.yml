@@ -49,7 +49,7 @@ jobs:
       CHECK_TYPE: normal
       COMPILER: ${{ inputs.compiler || 'gcc' }}
       PG_VERSION: ${{ inputs.pg_version || '17' }}
-      BENCH_DURATION: ${{ inputs.bench_duration || '10m' }}
+      DURATION: ${{ inputs.bench_duration || '10m' }}
       SCALE_FACTOR: ${{ inputs.scale_factor || '1' }}
     steps:
       - name: Checkout extension code (base branch)
@@ -80,8 +80,6 @@ jobs:
         with:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres
-          duration: ${{ inputs.bench_duration || '10m' }}
-          scale-factor: ${{ inputs.scale_factor || '1' }}
           artifact-name: perf-results-base-${{ matrix.run }}
       - name: Stop PostgreSQL
         if: always()
@@ -101,7 +99,7 @@ jobs:
       CHECK_TYPE: normal
       COMPILER: ${{ inputs.compiler || 'gcc' }}
       PG_VERSION: ${{ inputs.pg_version || '17' }}
-      BENCH_DURATION: ${{ inputs.bench_duration || '10m' }}
+      DURATION: ${{ inputs.bench_duration || '10m' }}
       SCALE_FACTOR: ${{ inputs.scale_factor || '1' }}
     steps:
       - name: Checkout extension code (head branch)
@@ -132,8 +130,6 @@ jobs:
         with:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres
-          duration: ${{ inputs.bench_duration || '10m' }}
-          scale-factor: ${{ inputs.scale_factor || '1' }}
           artifact-name: perf-results-head-${{ matrix.run }}
       - name: Stop PostgreSQL
         if: always()

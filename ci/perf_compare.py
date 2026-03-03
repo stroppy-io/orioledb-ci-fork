@@ -1,99 +1,159 @@
 #!/usr/bin/env python3
-"""Compare k6/stroppy TPC-C benchmark results between base and head branches."""
+"""Compare k6/stroppy TPC-C benchmark results between base and head branches.
+
+Parses k6 NDJSON output files (produced by stroppy-action with --out json=).
+"""
 
 import argparse
+import glob
+import json
+import math
 import os
-import re
 import statistics
 import sys
 
 
-def parse_k6_metrics(log_text):
-    """Parse k6 end-of-test summary from a stroppy log file.
+def percentile(sorted_data, p):
+    """Compute p-th percentile from sorted data."""
+    if not sorted_data:
+        return 0.0
+    k = (len(sorted_data) - 1) * p / 100.0
+    f = math.floor(k)
+    c = math.ceil(k)
+    if f == c:
+        return sorted_data[int(k)]
+    return sorted_data[f] * (c - k) + sorted_data[c] * (k - f)
 
-    Extracts metrics from k6 output format. Duration values may use
-    unicode micro sign (µs) so we use a non-greedy pattern for units.
+
+def parse_k6_json(filepath):
+    """Parse k6 NDJSON results file.
+
+    Each line is either a Metric definition or a Point data sample:
+      {"type":"Point","metric":"iteration_duration","data":{"time":"...","value":12.3},"tags":{...}}
     """
+    iteration_durations = []
+    query_durations = []
+    iteration_count = 0
+    query_count = 0
+    first_time = None
+    last_time = None
+
+    with open(filepath) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            if obj.get("type") != "Point":
+                continue
+
+            metric = obj.get("metric", "")
+            value = obj.get("data", {}).get("value")
+            ts = obj.get("data", {}).get("time", "")
+
+            if value is None:
+                continue
+
+            # Track time range for rate calculation
+            if ts:
+                if first_time is None or ts < first_time:
+                    first_time = ts
+                if last_time is None or ts > last_time:
+                    last_time = ts
+
+            if metric == "iteration_duration":
+                iteration_durations.append(float(value))
+                iteration_count += 1
+            elif metric == "run_query_duration":
+                query_durations.append(float(value))
+                query_count += 1
+
+    # Estimate duration in seconds from time range
+    duration_s = estimate_duration_s(first_time, last_time)
+
     metrics = {}
 
-    # Duration value pattern: number followed by unit (handles µs, ms, s, m)
-    DUR = r"([\d.]+[a-zµ\u00b5]+)"
+    if iteration_count > 0:
+        iteration_durations.sort()
+        metrics["total_iterations"] = iteration_count
+        metrics["total_iterations_rate"] = iteration_count / duration_s if duration_s > 0 else 0
+        metrics["avg_duration_ms"] = statistics.mean(iteration_durations)
+        metrics["med_duration_ms"] = statistics.median(iteration_durations)
+        metrics["p90_duration_ms"] = percentile(iteration_durations, 90)
+        metrics["p95_duration_ms"] = percentile(iteration_durations, 95)
 
-    # Parse aggregate iterations rate
-    m = re.search(
-        r"iterations\.+:\s+(\d+)\s+([\d.]+)/s",
-        log_text,
-    )
-    if m:
-        metrics["total_iterations"] = int(m.group(1))
-        metrics["total_iterations_rate"] = float(m.group(2))
-
-    # Parse aggregate iteration_duration
-    pat = (
-        r"iteration_duration\.+:\s+"
-        rf"avg={DUR}\s+min={DUR}\s+med={DUR}\s+max={DUR}\s+"
-        rf"p\(90\)={DUR}\s+p\(95\)={DUR}"
-    )
-    m = re.search(pat, log_text)
-    if m:
-        metrics["avg_duration_ms"] = parse_duration_ms(m.group(1))
-        metrics["med_duration_ms"] = parse_duration_ms(m.group(3))
-        metrics["p90_duration_ms"] = parse_duration_ms(m.group(5))
-        metrics["p95_duration_ms"] = parse_duration_ms(m.group(6))
-
-    # Parse run_query_duration (stroppy custom metric)
-    pat_rq = (
-        r"run_query_duration\.+:\s+"
-        rf"avg={DUR}\s+min={DUR}\s+med={DUR}\s+max={DUR}\s+"
-        rf"p\(90\)={DUR}\s+p\(95\)={DUR}"
-    )
-    m = re.search(pat_rq, log_text)
-    if m:
-        metrics["query_avg_ms"] = parse_duration_ms(m.group(1))
-        metrics["query_p90_ms"] = parse_duration_ms(m.group(5))
-        metrics["query_p95_ms"] = parse_duration_ms(m.group(6))
-
-    # Parse run_query_count (queries/s)
-    m = re.search(r"run_query_count\.+:\s+(\d+)\s+([\d.]+)/s", log_text)
-    if m:
-        metrics["query_rate"] = float(m.group(2))
+    if query_count > 0:
+        query_durations.sort()
+        metrics["query_rate"] = query_count / duration_s if duration_s > 0 else 0
+        metrics["query_avg_ms"] = statistics.mean(query_durations)
+        metrics["query_p90_ms"] = percentile(query_durations, 90)
+        metrics["query_p95_ms"] = percentile(query_durations, 95)
 
     return metrics
 
 
-def parse_duration_ms(s):
-    """Convert a k6 duration string (e.g., '12.3ms', '1.5s', '77.41µs') to milliseconds."""
-    m = re.match(r"([\d.]+)(.*)", s)
-    if not m:
-        return 0.0
-    value = float(m.group(1))
-    unit = m.group(2).strip()
-    if unit == "ms":
-        return value
-    elif unit == "s":
-        return value * 1000
-    elif unit in ("us", "\u00b5s", "\xb5s", "µs"):
-        return value / 1000
-    elif unit == "m":
-        return value * 60000
-    return value
+def estimate_duration_s(first_time, last_time):
+    """Estimate test duration from ISO timestamps."""
+    if not first_time or not last_time:
+        return 1.0
+    from datetime import datetime, timezone
+
+    def parse_ts(s):
+        # Handle various k6 timestamp formats
+        s = s.replace("Z", "+00:00")
+        # Truncate nanosecond precision to microsecond
+        if "." in s:
+            base, frac_and_tz = s.split(".", 1)
+            # Separate fractional seconds from timezone
+            for i, c in enumerate(frac_and_tz):
+                if c in ("+", "-") and i > 0:
+                    frac = frac_and_tz[:i][:6]  # max 6 digits
+                    tz = frac_and_tz[i:]
+                    s = f"{base}.{frac}{tz}"
+                    break
+            else:
+                frac = frac_and_tz[:6]
+                s = f"{base}.{frac}"
+        try:
+            return datetime.fromisoformat(s)
+        except ValueError:
+            return None
+
+    t1 = parse_ts(first_time)
+    t2 = parse_ts(last_time)
+    if t1 and t2:
+        return max((t2 - t1).total_seconds(), 1.0)
+    return 1.0
+
+
+def find_result_files(results_dir, num_runs):
+    """Find stroppy JSON result files in the download directory.
+
+    stroppy-action artifacts are downloaded as:
+      results-dir/perf-results-{branch}-{N}/stroppy-results.json
+    """
+    files = sorted(glob.glob(os.path.join(results_dir, "**", "stroppy-results.json"), recursive=True))
+    if not files:
+        # Fallback: try flat layout
+        files = sorted(glob.glob(os.path.join(results_dir, "*.json")))
+    return files[:num_runs]
 
 
 def load_run_results(results_dir, num_runs):
-    """Load and parse all run log files from a results directory."""
+    """Load and parse all result files from a results directory."""
+    files = find_result_files(results_dir, num_runs)
     all_metrics = []
-    for i in range(1, num_runs + 1):
-        log_path = os.path.join(results_dir, f"run_{i}.log")
-        if not os.path.exists(log_path):
-            print(f"Warning: {log_path} not found, skipping", file=sys.stderr)
-            continue
-        with open(log_path) as f:
-            text = f.read()
-        metrics = parse_k6_metrics(text)
+    for filepath in files:
+        print(f"Parsing: {filepath}", file=sys.stderr)
+        metrics = parse_k6_json(filepath)
         if metrics:
             all_metrics.append(metrics)
         else:
-            print(f"Warning: no metrics found in {log_path}", file=sys.stderr)
+            print(f"Warning: no metrics found in {filepath}", file=sys.stderr)
     return all_metrics
 
 
@@ -118,7 +178,6 @@ def format_change(base_val, head_val, lower_is_better=False):
         return "N/A"
     change = (head_val - base_val) / base_val * 100
     sign = "+" if change > 0 else ""
-    # For durations, lower is better; for throughput, higher is better
     if lower_is_better:
         indicator = " :white_check_mark:" if change < -2 else (" :warning:" if change > 2 else "")
     else:

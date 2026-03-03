@@ -49,7 +49,6 @@ jobs:
       CHECK_TYPE: normal
       COMPILER: ${{ inputs.compiler || 'gcc' }}
       PG_VERSION: ${{ inputs.pg_version || '17' }}
-      RUN_NUMBER: ${{ matrix.run }}
       BENCH_DURATION: ${{ inputs.bench_duration || '10m' }}
       SCALE_FACTOR: ${{ inputs.scale_factor || '1' }}
     steps:
@@ -72,14 +71,21 @@ jobs:
         run: bash ./orioledb/ci/prerequisites.sh
       - name: Build (with local cache)
         run: bash ./orioledb/ci/perf_build.sh
-      - name: Run benchmark
-        run: bash ./orioledb/ci/perf_bench.sh
-      - name: Upload results
-        uses: actions/upload-artifact@v4
+      - name: Start PostgreSQL
+        run: bash ./orioledb/ci/perf_pg_start.sh
+      - name: Resolve current user
+        run: echo "PGUSER=$(whoami)" >> $GITHUB_ENV
+      - name: Run TPC-C benchmark
+        uses: stroppy-io/stroppy-action@main
         with:
-          name: perf-results-base-${{ matrix.run }}
-          path: results/
-          retention-days: 3
+          preset: tpcc
+          driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres
+          duration: ${{ inputs.bench_duration || '10m' }}
+          scale-factor: ${{ inputs.scale_factor || '1' }}
+          artifact-name: perf-results-base-${{ matrix.run }}
+      - name: Stop PostgreSQL
+        if: always()
+        run: bash ./orioledb/ci/perf_pg_stop.sh
 
   bench-head:
     name: "Bench head #${{ matrix.run }}"
@@ -95,7 +101,6 @@ jobs:
       CHECK_TYPE: normal
       COMPILER: ${{ inputs.compiler || 'gcc' }}
       PG_VERSION: ${{ inputs.pg_version || '17' }}
-      RUN_NUMBER: ${{ matrix.run }}
       BENCH_DURATION: ${{ inputs.bench_duration || '10m' }}
       SCALE_FACTOR: ${{ inputs.scale_factor || '1' }}
     steps:
@@ -118,14 +123,21 @@ jobs:
         run: bash ./orioledb/ci/prerequisites.sh
       - name: Build (with local cache)
         run: bash ./orioledb/ci/perf_build.sh
-      - name: Run benchmark
-        run: bash ./orioledb/ci/perf_bench.sh
-      - name: Upload results
-        uses: actions/upload-artifact@v4
+      - name: Start PostgreSQL
+        run: bash ./orioledb/ci/perf_pg_start.sh
+      - name: Resolve current user
+        run: echo "PGUSER=$(whoami)" >> $GITHUB_ENV
+      - name: Run TPC-C benchmark
+        uses: stroppy-io/stroppy-action@main
         with:
-          name: perf-results-head-${{ matrix.run }}
-          path: results/
-          retention-days: 3
+          preset: tpcc
+          driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres
+          duration: ${{ inputs.bench_duration || '10m' }}
+          scale-factor: ${{ inputs.scale_factor || '1' }}
+          artifact-name: perf-results-head-${{ matrix.run }}
+      - name: Stop PostgreSQL
+        if: always()
+        run: bash ./orioledb/ci/perf_pg_stop.sh
 
   compare:
     name: Compare results
@@ -143,13 +155,11 @@ jobs:
         with:
           pattern: perf-results-base-*
           path: results-base/
-          merge-multiple: true
       - name: Download head results
         uses: actions/download-artifact@v4
         with:
           pattern: perf-results-head-*
           path: results-head/
-          merge-multiple: true
       - name: Compare results
         run: |
           python3 ./orioledb/ci/perf_compare.py \

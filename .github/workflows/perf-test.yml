@@ -183,5 +183,6 @@ jobs:
             gh api repos/${{ github.repository }}/issues/comments/${EXISTING} \
               -X PATCH -f body="$COMMENT"
           else
-            gh pr comment "$PR_NUMBER" --body "$COMMENT"
+            gh api repos/${{ github.repository }}/issues/${PR_NUMBER}/comments \
+              -f body="$COMMENT"
           fi

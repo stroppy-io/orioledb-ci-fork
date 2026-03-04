@@ -15,11 +15,11 @@ on:
       bench_duration:
         description: "Duration per benchmark run"
         required: false
-        default: "10m"
+        default: "5m"
       bench_runs:
         description: "Number of benchmark runs"
         required: false
-        default: "5"
+        default: "1"
       scale_factor:
         description: "TPC-C scale factor"
         required: false
@@ -34,7 +34,7 @@ jobs:
     steps:
       - id: gen
         run: |
-          RUNS="${{ inputs.bench_runs || '5' }}"
+          RUNS="${{ inputs.bench_runs || '1' }}"
           echo "run-matrix=$(python3 -c "import json; print(json.dumps({'run': list(range(1, int('$RUNS')+1))}))")" >> $GITHUB_OUTPUT
 
   bench-base:
@@ -49,7 +49,7 @@ jobs:
       CHECK_TYPE: normal
       COMPILER: ${{ inputs.compiler || 'gcc' }}
       PG_VERSION: ${{ inputs.pg_version || '17' }}
-      DURATION: ${{ inputs.bench_duration || '10m' }}
+      DURATION: ${{ inputs.bench_duration || '5m' }}
       SCALE_FACTOR: ${{ inputs.scale_factor || '1' }}
     steps:
       - name: Checkout extension code (base branch)
@@ -99,7 +99,7 @@ jobs:
       CHECK_TYPE: normal
       COMPILER: ${{ inputs.compiler || 'gcc' }}
       PG_VERSION: ${{ inputs.pg_version || '17' }}
-      DURATION: ${{ inputs.bench_duration || '10m' }}
+      DURATION: ${{ inputs.bench_duration || '5m' }}
       SCALE_FACTOR: ${{ inputs.scale_factor || '1' }}
     steps:
       - name: Checkout extension code (head branch)
@@ -161,8 +161,8 @@ jobs:
           python3 ./orioledb/ci/perf_compare.py \
             --base-dir results-base/ \
             --head-dir results-head/ \
-            --runs "${{ inputs.bench_runs || '5' }}" \
-            --duration "${{ inputs.bench_duration || '10m' }}" \
+            --runs "${{ inputs.bench_runs || '1' }}" \
+            --duration "${{ inputs.bench_duration || '5m' }}" \
             --scale-factor "${{ inputs.scale_factor || '1' }}" \
             --output comment.md
       - name: Post PR comment

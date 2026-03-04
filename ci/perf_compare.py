@@ -1,133 +1,59 @@
 #!/usr/bin/env python3
 """Compare k6/stroppy TPC-C benchmark results between base and head branches.
 
-Parses k6 NDJSON output files (produced by stroppy-action with --out json=).
+Parses k6 summary JSON files (produced by stroppy-action with --summary-export).
+Each file is a single JSON object: {"metrics": {"metric_name": {"avg":..., "med":..., ...}}}
 """
 
 import argparse
 import glob
 import json
-import math
 import os
 import statistics
 import sys
 
 
-def percentile(sorted_data, p):
-    """Compute p-th percentile from sorted data."""
-    if not sorted_data:
-        return 0.0
-    k = (len(sorted_data) - 1) * p / 100.0
-    f = math.floor(k)
-    c = math.ceil(k)
-    if f == c:
-        return sorted_data[int(k)]
-    return sorted_data[f] * (c - k) + sorted_data[c] * (k - f)
+def parse_k6_summary(filepath):
+    """Parse k6 summary JSON results file.
 
-
-def parse_k6_json(filepath):
-    """Parse k6 NDJSON results file.
-
-    Each line is either a Metric definition or a Point data sample:
-      {"type":"Point","metric":"iteration_duration","data":{"time":"...","value":12.3},"tags":{...}}
+    Returns a flat dict of normalized metric values suitable for comparison.
     """
-    iteration_durations = []
-    query_durations = []
-    iteration_count = 0
-    query_count = 0
-    first_time = None
-    last_time = None
-
     with open(filepath) as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                obj = json.loads(line)
-            except json.JSONDecodeError:
-                continue
+        data = json.load(f)
 
-            if obj.get("type") != "Point":
-                continue
-
-            metric = obj.get("metric", "")
-            value = obj.get("data", {}).get("value")
-            ts = obj.get("data", {}).get("time", "")
-
-            if value is None:
-                continue
-
-            # Track time range for rate calculation
-            if ts:
-                if first_time is None or ts < first_time:
-                    first_time = ts
-                if last_time is None or ts > last_time:
-                    last_time = ts
-
-            if metric == "iteration_duration":
-                iteration_durations.append(float(value))
-                iteration_count += 1
-            elif metric == "run_query_duration":
-                query_durations.append(float(value))
-                query_count += 1
-
-    # Estimate duration in seconds from time range
-    duration_s = estimate_duration_s(first_time, last_time)
+    raw_metrics = data.get("metrics", {})
+    if not raw_metrics:
+        return {}
 
     metrics = {}
 
-    if iteration_count > 0:
-        iteration_durations.sort()
-        metrics["total_iterations"] = iteration_count
-        metrics["total_iterations_rate"] = iteration_count / duration_s if duration_s > 0 else 0
-        metrics["avg_duration_ms"] = statistics.mean(iteration_durations)
-        metrics["med_duration_ms"] = statistics.median(iteration_durations)
-        metrics["p90_duration_ms"] = percentile(iteration_durations, 90)
-        metrics["p95_duration_ms"] = percentile(iteration_durations, 95)
+    # iteration_duration — latency metrics (ms)
+    it = raw_metrics.get("iteration_duration", {})
+    if it:
+        metrics["avg_duration_ms"] = it.get("avg", 0)
+        metrics["med_duration_ms"] = it.get("med", 0)
+        metrics["p90_duration_ms"] = it.get("p(90)", 0)
+        metrics["p95_duration_ms"] = it.get("p(95)", 0)
 
-    if query_count > 0:
-        query_durations.sort()
-        metrics["query_rate"] = query_count / duration_s if duration_s > 0 else 0
-        metrics["query_avg_ms"] = statistics.mean(query_durations)
-        metrics["query_p90_ms"] = percentile(query_durations, 90)
-        metrics["query_p95_ms"] = percentile(query_durations, 95)
+    # iterations — throughput counter
+    iters = raw_metrics.get("iterations", {})
+    if iters:
+        metrics["total_iterations"] = iters.get("count", 0)
+        metrics["total_iterations_rate"] = iters.get("rate", 0)
+
+    # run_query_duration — query latency
+    qd = raw_metrics.get("run_query_duration", {})
+    if qd:
+        metrics["query_avg_ms"] = qd.get("avg", 0)
+        metrics["query_p90_ms"] = qd.get("p(90)", 0)
+        metrics["query_p95_ms"] = qd.get("p(95)", 0)
+
+    # run_query_count — query throughput
+    qc = raw_metrics.get("run_query_count", {})
+    if qc:
+        metrics["query_rate"] = qc.get("rate", 0)
 
     return metrics
-
-
-def estimate_duration_s(first_time, last_time):
-    """Estimate test duration from ISO timestamps."""
-    if not first_time or not last_time:
-        return 1.0
-    from datetime import datetime, timezone
-
-    def parse_ts(s):
-        # Handle various k6 timestamp formats
-        s = s.replace("Z", "+00:00")
-        # Truncate nanosecond precision to microsecond
-        if "." in s:
-            base, frac_and_tz = s.split(".", 1)
-            # Separate fractional seconds from timezone
-            for i, c in enumerate(frac_and_tz):
-                if c in ("+", "-") and i > 0:
-                    frac = frac_and_tz[:i][:6]  # max 6 digits
-                    tz = frac_and_tz[i:]
-                    s = f"{base}.{frac}{tz}"
-                    break
-            else:
-                frac = frac_and_tz[:6]
-                s = f"{base}.{frac}"
-        try:
-            return datetime.fromisoformat(s)
-        except ValueError:
-            return None
-
-    t1 = parse_ts(first_time)
-    t2 = parse_ts(last_time)
-    if t1 and t2:
-        return max((t2 - t1).total_seconds(), 1.0)
-    return 1.0
 
 
 def find_result_files(results_dir, num_runs):
@@ -138,7 +64,6 @@ def find_result_files(results_dir, num_runs):
     """
     files = sorted(glob.glob(os.path.join(results_dir, "**", "stroppy-results.json"), recursive=True))
     if not files:
-        # Fallback: try flat layout
         files = sorted(glob.glob(os.path.join(results_dir, "*.json")))
     return files[:num_runs]
 
@@ -149,7 +74,7 @@ def load_run_results(results_dir, num_runs):
     all_metrics = []
     for filepath in files:
         print(f"Parsing: {filepath}", file=sys.stderr)
-        metrics = parse_k6_json(filepath)
+        metrics = parse_k6_summary(filepath)
         if metrics:
             all_metrics.append(metrics)
         else:

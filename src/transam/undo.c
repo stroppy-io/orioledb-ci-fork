@@ -1594,7 +1594,8 @@ reserve_undo_size_extended(UndoLogType undoType, Size size,
 		pg_atomic_read_u64(&meta->writtenLocation) + circularBufferSize)
 		return true;
 
-	update_min_undo_locations(undoType, false, waitForUndoLocation);
+	if (undoType != UndoLogSystem || !have_locked_pages())
+		update_min_undo_locations(undoType, false, waitForUndoLocation);
 
 	if (!check_reserved_undo_location(undoType, location + size,
 									  &minProcReservedLocation,
@@ -2117,7 +2118,7 @@ undo_xact_callback(XactEvent event, void *arg)
 
 					wal_joint_commit(oxid,
 									 get_current_logical_xid(),
-									 heapXid);
+									 heapXid, false);
 				}
 
 				break;
@@ -2208,6 +2209,12 @@ undo_xact_callback(XactEvent event, void *arg)
 
 				for (i = 0; i < (int) UndoLogsCount; i++)
 					apply_undo_stack((UndoLogType) i, oxid, NULL, true);
+
+				/*
+				 * XACT_EVENT_ABORT may follow XACT_EVENT_PRE_COMMIT.  So we
+				 * still need the cleanup.
+				 */
+				wal_after_commit();
 
 				reset_cur_undo_locations();
 				reset_command_undo_locations();

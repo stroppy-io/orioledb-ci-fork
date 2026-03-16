@@ -41,3 +41,6 @@ fi
 # Register the OrioleDB extension
 psql -d postgres -c "CREATE EXTENSION IF NOT EXISTS orioledb;"
 
+# Register the OrioleDB extension
+psql -d postgres -c "CREATE EXTENSION IF NOT EXISTS orioledb;"
+

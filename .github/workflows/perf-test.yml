@@ -94,13 +94,18 @@ jobs:
         run: bash ./orioledb/ci/perf_build.sh
       - name: Start PostgreSQL
         run: bash ./orioledb/ci/perf_pg_start.sh
+      - name: Verify PostgreSQL is ready
+        run: |
+          export PATH="$GITHUB_WORKSPACE/pgsql/bin:$PATH"
+          pg_isready -t 5
+          psql -d postgres -c "SELECT orioledb_version();"
       - name: Resolve current user
         run: echo "PGUSER=$(whoami)" >> $GITHUB_ENV
       - name: Run TPC-C benchmark
         uses: stroppy-io/stroppy-action@main
         with:
           preset: tpcc
-          driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres
+          driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-base-${{ matrix.warehouses }}W-${{ matrix.run }}
       - name: Stop PostgreSQL
         if: always()
@@ -146,13 +151,18 @@ jobs:
         run: bash ./orioledb/ci/perf_build.sh
       - name: Start PostgreSQL
         run: bash ./orioledb/ci/perf_pg_start.sh
+      - name: Verify PostgreSQL is ready
+        run: |
+          export PATH="$GITHUB_WORKSPACE/pgsql/bin:$PATH"
+          pg_isready -t 5
+          psql -d postgres -c "SELECT orioledb_version();"
       - name: Resolve current user
         run: echo "PGUSER=$(whoami)" >> $GITHUB_ENV
       - name: Run TPC-C benchmark
         uses: stroppy-io/stroppy-action@main
         with:
           preset: tpcc
-          driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres
+          driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-head-${{ matrix.warehouses }}W-${{ matrix.run }}
       - name: Stop PostgreSQL
         if: always()

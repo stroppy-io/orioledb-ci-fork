@@ -25,10 +25,18 @@ checkpoint_completion_target = 0.9
 EOF
 
 # Start PostgreSQL
-pg_ctl -D "$PGDATA" -l "$PGDATA/postgresql.log" start
+if ! pg_ctl -D "$PGDATA" -l "$PGDATA/postgresql.log" start; then
+  echo "=== PostgreSQL failed to start. Log: ==="
+  cat "$PGDATA/postgresql.log"
+  exit 1
+fi
 
 # Wait for PostgreSQL to be ready
-pg_isready -t 30
+if ! pg_isready -t 30; then
+  echo "=== PostgreSQL not ready. Log: ==="
+  cat "$PGDATA/postgresql.log"
+  exit 1
+fi
 
 # Register the OrioleDB extension
 psql -d postgres -c "CREATE EXTENSION IF NOT EXISTS orioledb;"

@@ -1,4 +1,4 @@
-name: perf-test
+name: TPC-C Performance Test
 
 on:
   pull_request:
@@ -187,6 +187,8 @@ jobs:
             --runs "${{ inputs.bench_runs || '1' }}" \
             --duration "${{ inputs.bench_duration || '5m' }}" \
             --warehouses "${{ inputs.warehouses || '1' }}" \
+            --vus-scale "${{ inputs.vus_scale || '1' }}" \
+            --pool-size "${{ inputs.pool_size || '100' }}" \
             --output comment.md
       - name: Post PR comment
         if: github.event_name == 'pull_request'

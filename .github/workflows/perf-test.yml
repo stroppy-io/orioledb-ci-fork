@@ -1,5 +1,8 @@
 name: TPC-C Performance Test
 
+permissions:
+  pull-requests: write
+
 on:
   pull_request:
   workflow_dispatch:
@@ -107,6 +110,7 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-base-${{ matrix.warehouses }}W-${{ matrix.run }}
+          k6-args: '--out opentelemetry'
       - name: Stop PostgreSQL
         if: always()
         run: bash ./orioledb/ci/perf_pg_stop.sh
@@ -164,6 +168,7 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-head-${{ matrix.warehouses }}W-${{ matrix.run }}
+          k6-args: '--out opentelemetry'
       - name: Stop PostgreSQL
         if: always()
         run: bash ./orioledb/ci/perf_pg_stop.sh

@@ -26,7 +26,7 @@ on:
       warehouses:
         description: "Number of warehouses / TPC-C scale factor (comma-separated for multiple, e.g. 1,10,100)"
         required: false
-        default: "5"
+        default: "200"
       vus_scale:
         description: "VU scale multiplier (1 = 99 VUs, 0.5 ≈ 50, 0.1 ≈ 11)"
         required: false
@@ -50,7 +50,7 @@ jobs:
       - id: gen
         env:
           RUNS: ${{ inputs.bench_runs || '3' }}
-          WAREHOUSES: ${{ inputs.warehouses || '5' }}
+          WAREHOUSES: ${{ inputs.warehouses || '200' }}
         run: |
           echo "run-matrix=$(python3 -c "
           import json, os
@@ -201,7 +201,7 @@ jobs:
             --head-dir results-head/ \
             --runs "${{ inputs.bench_runs || '3' }}" \
             --duration "${{ inputs.bench_duration || '20m' }}" \
-            --warehouses "${{ inputs.warehouses || '5' }}" \
+            --warehouses "${{ inputs.warehouses || '200' }}" \
             --vus-scale "${{ inputs.vus_scale || '1' }}" \
             --pool-size "${{ inputs.pool_size || '100' }}" \
             --output comment.md

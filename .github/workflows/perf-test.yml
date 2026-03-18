@@ -75,6 +75,7 @@ jobs:
       WAREHOUSES: ${{ matrix.warehouses }}
       VUS_SCALE: ${{ inputs.vus_scale || '1' }}
       POOL_SIZE: ${{ inputs.pool_size || '100' }}
+      K6_SETUP_TIMEOUT: '7200s'
     steps:
       - name: Checkout extension code (base branch)
         uses: actions/checkout@v4
@@ -110,7 +111,7 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-base-${{ matrix.warehouses }}W-${{ matrix.run }}
-          k6-args: '--out opentelemetry --setup-timeout 7200s'
+          k6-args: '--out opentelemetry'
       - name: Stop PostgreSQL
         if: always()
         run: bash ./orioledb/ci/perf_pg_stop.sh
@@ -133,6 +134,7 @@ jobs:
       WAREHOUSES: ${{ matrix.warehouses }}
       VUS_SCALE: ${{ inputs.vus_scale || '1' }}
       POOL_SIZE: ${{ inputs.pool_size || '100' }}
+      K6_SETUP_TIMEOUT: '7200s'
     steps:
       - name: Checkout extension code (head branch)
         uses: actions/checkout@v4
@@ -168,7 +170,7 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-head-${{ matrix.warehouses }}W-${{ matrix.run }}
-          k6-args: '--out opentelemetry --setup-timeout 7200s'
+          k6-args: '--out opentelemetry'
       - name: Stop PostgreSQL
         if: always()
         run: bash ./orioledb/ci/perf_pg_stop.sh

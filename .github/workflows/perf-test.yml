@@ -110,7 +110,7 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-base-${{ matrix.warehouses }}W-${{ matrix.run }}
-          k6-args: '--out opentelemetry'
+          k6-args: '--out opentelemetry --setup-timeout 7200s'
       - name: Stop PostgreSQL
         if: always()
         run: bash ./orioledb/ci/perf_pg_stop.sh
@@ -168,7 +168,7 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-head-${{ matrix.warehouses }}W-${{ matrix.run }}
-          k6-args: '--out opentelemetry'
+          k6-args: '--out opentelemetry --setup-timeout 7200s'
       - name: Stop PostgreSQL
         if: always()
         run: bash ./orioledb/ci/perf_pg_stop.sh

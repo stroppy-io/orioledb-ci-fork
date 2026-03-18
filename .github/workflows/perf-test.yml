@@ -75,7 +75,6 @@ jobs:
       WAREHOUSES: ${{ matrix.warehouses }}
       VUS_SCALE: ${{ inputs.vus_scale || '1' }}
       POOL_SIZE: ${{ inputs.pool_size || '100' }}
-      K6_SETUP_TIMEOUT: '7200s'
     steps:
       - name: Checkout extension code (base branch)
         uses: actions/checkout@v4
@@ -134,7 +133,6 @@ jobs:
       WAREHOUSES: ${{ matrix.warehouses }}
       VUS_SCALE: ${{ inputs.vus_scale || '1' }}
       POOL_SIZE: ${{ inputs.pool_size || '100' }}
-      K6_SETUP_TIMEOUT: '7200s'
     steps:
       - name: Checkout extension code (head branch)
         uses: actions/checkout@v4

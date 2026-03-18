@@ -18,15 +18,15 @@ on:
       bench_duration:
         description: "Duration per benchmark run"
         required: false
-        default: "5m"
+        default: "20m"
       bench_runs:
         description: "Number of benchmark runs"
         required: false
-        default: "1"
+        default: "3"
       warehouses:
         description: "Number of warehouses / TPC-C scale factor (comma-separated for multiple, e.g. 1,10,100)"
         required: false
-        default: "1"
+        default: "5"
       vus_scale:
         description: "VU scale multiplier (1 = 99 VUs, 0.5 ≈ 50, 0.1 ≈ 11)"
         required: false

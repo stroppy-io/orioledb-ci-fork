@@ -49,8 +49,8 @@ jobs:
     steps:
       - id: gen
         env:
-          RUNS: ${{ inputs.bench_runs || '1' }}
-          WAREHOUSES: ${{ inputs.warehouses || '1' }}
+          RUNS: ${{ inputs.bench_runs || '3' }}
+          WAREHOUSES: ${{ inputs.warehouses || '5' }}
         run: |
           echo "run-matrix=$(python3 -c "
           import json, os
@@ -71,7 +71,7 @@ jobs:
       CHECK_TYPE: normal
       COMPILER: ${{ inputs.compiler || 'gcc' }}
       PG_VERSION: ${{ inputs.pg_version || '17' }}
-      DURATION: ${{ inputs.bench_duration || '5m' }}
+      DURATION: ${{ inputs.bench_duration || '20m' }}
       WAREHOUSES: ${{ matrix.warehouses }}
       VUS_SCALE: ${{ inputs.vus_scale || '1' }}
       POOL_SIZE: ${{ inputs.pool_size || '100' }}
@@ -129,7 +129,7 @@ jobs:
       CHECK_TYPE: normal
       COMPILER: ${{ inputs.compiler || 'gcc' }}
       PG_VERSION: ${{ inputs.pg_version || '17' }}
-      DURATION: ${{ inputs.bench_duration || '5m' }}
+      DURATION: ${{ inputs.bench_duration || '20m' }}
       WAREHOUSES: ${{ matrix.warehouses }}
       VUS_SCALE: ${{ inputs.vus_scale || '1' }}
       POOL_SIZE: ${{ inputs.pool_size || '100' }}
@@ -199,9 +199,9 @@ jobs:
           python3 ./orioledb/ci/perf_compare.py \
             --base-dir results-base/ \
             --head-dir results-head/ \
-            --runs "${{ inputs.bench_runs || '1' }}" \
-            --duration "${{ inputs.bench_duration || '5m' }}" \
-            --warehouses "${{ inputs.warehouses || '1' }}" \
+            --runs "${{ inputs.bench_runs || '3' }}" \
+            --duration "${{ inputs.bench_duration || '20m' }}" \
+            --warehouses "${{ inputs.warehouses || '5' }}" \
             --vus-scale "${{ inputs.vus_scale || '1' }}" \
             --pool-size "${{ inputs.pool_size || '100' }}" \
             --output comment.md

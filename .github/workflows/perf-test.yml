@@ -76,6 +76,11 @@ jobs:
       VUS_SCALE: ${{ inputs.vus_scale || '1' }}
       POOL_SIZE: ${{ inputs.pool_size || '100' }}
     steps:
+      - name: Clean up previous runs
+        run: |
+          pkill -9 postgres 2>/dev/null || true
+          rm -rf "$GITHUB_WORKSPACE/pgdata" 2>/dev/null || true
+          sleep 1
       - name: Checkout extension code (base branch)
         uses: actions/checkout@v4
         with:
@@ -134,6 +139,11 @@ jobs:
       VUS_SCALE: ${{ inputs.vus_scale || '1' }}
       POOL_SIZE: ${{ inputs.pool_size || '100' }}
     steps:
+      - name: Clean up previous runs
+        run: |
+          pkill -9 postgres 2>/dev/null || true
+          rm -rf "$GITHUB_WORKSPACE/pgdata" 2>/dev/null || true
+          sleep 1
       - name: Checkout extension code (head branch)
         uses: actions/checkout@v4
         with:

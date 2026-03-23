@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# Stop PostgreSQL and save logs for debugging
 set -eux
 
 export PATH="$GITHUB_WORKSPACE/pgsql/bin:$PATH"

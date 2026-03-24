@@ -107,6 +107,8 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/pgsql/bin:$PATH"
           pg_isready -t 5
           psql -d postgres -c "SELECT orioledb_version();"
+      - name: Restore DB cache
+        run: bash ./orioledb/ci/perf_db_cache.sh restore
       - name: Resolve current user
         run: echo "PGUSER=$(whoami)" >> $GITHUB_ENV
       - name: Run TPC-C benchmark
@@ -115,7 +117,10 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-base-${{ matrix.warehouses }}W-${{ matrix.run }}
-          k6-args: '--out opentelemetry'
+          k6-args: "--out opentelemetry ${{ env.DB_CACHED == 'true' && '--steps workload' || '' }}"
+      - name: Save DB cache
+        if: env.DB_CACHED != 'true'
+        run: bash ./orioledb/ci/perf_db_cache.sh save
       - name: Stop PostgreSQL
         if: always()
         run: bash ./orioledb/ci/perf_pg_stop.sh
@@ -170,6 +175,8 @@ jobs:
           export PATH="$GITHUB_WORKSPACE/pgsql/bin:$PATH"
           pg_isready -t 5
           psql -d postgres -c "SELECT orioledb_version();"
+      - name: Restore DB cache
+        run: bash ./orioledb/ci/perf_db_cache.sh restore
       - name: Resolve current user
         run: echo "PGUSER=$(whoami)" >> $GITHUB_ENV
       - name: Run TPC-C benchmark
@@ -178,7 +185,10 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-head-${{ matrix.warehouses }}W-${{ matrix.run }}
-          k6-args: '--out opentelemetry'
+          k6-args: "--out opentelemetry ${{ env.DB_CACHED == 'true' && '--steps workload' || '' }}"
+      - name: Save DB cache
+        if: env.DB_CACHED != 'true'
+        run: bash ./orioledb/ci/perf_db_cache.sh save
       - name: Stop PostgreSQL
         if: always()
         run: bash ./orioledb/ci/perf_pg_stop.sh

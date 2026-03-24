@@ -1,5 +1,8 @@
 name: TPC-C Performance Test
 
+permissions:
+  pull-requests: write
+
 on:
   pull_request:
   workflow_dispatch:
@@ -15,7 +18,7 @@ on:
       bench_duration:
         description: "Duration per benchmark run"
         required: false
-        default: "5m"
+        default: "25m"
       bench_runs:
         description: "Number of benchmark runs"
         required: false
@@ -23,7 +26,7 @@ on:
       warehouses:
         description: "Number of warehouses / TPC-C scale factor (comma-separated for multiple, e.g. 1,10,100)"
         required: false
-        default: "1"
+        default: "200"
       vus_scale:
         description: "VU scale multiplier (1 = 99 VUs, 0.5 ≈ 50, 0.1 ≈ 11)"
         required: false
@@ -47,7 +50,7 @@ jobs:
       - id: gen
         env:
           RUNS: ${{ inputs.bench_runs || '1' }}
-          WAREHOUSES: ${{ inputs.warehouses || '1' }}
+          WAREHOUSES: ${{ inputs.warehouses || '200' }}
         run: |
           echo "run-matrix=$(python3 -c "
           import json, os
@@ -68,11 +71,16 @@ jobs:
       CHECK_TYPE: normal
       COMPILER: ${{ inputs.compiler || 'gcc' }}
       PG_VERSION: ${{ inputs.pg_version || '17' }}
-      DURATION: ${{ inputs.bench_duration || '5m' }}
+      DURATION: ${{ inputs.bench_duration || '25m' }}
       WAREHOUSES: ${{ matrix.warehouses }}
       VUS_SCALE: ${{ inputs.vus_scale || '1' }}
       POOL_SIZE: ${{ inputs.pool_size || '100' }}
     steps:
+      - name: Clean up previous runs
+        run: |
+          pkill -9 postgres 2>/dev/null || true
+          rm -rf "$GITHUB_WORKSPACE/pgdata" 2>/dev/null || true
+          sleep 1
       - name: Checkout extension code (base branch)
         uses: actions/checkout@v4
         with:
@@ -107,6 +115,7 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-base-${{ matrix.warehouses }}W-${{ matrix.run }}
+          k6-args: '--out opentelemetry'
       - name: Stop PostgreSQL
         if: always()
         run: bash ./orioledb/ci/perf_pg_stop.sh
@@ -125,11 +134,16 @@ jobs:
       CHECK_TYPE: normal
       COMPILER: ${{ inputs.compiler || 'gcc' }}
       PG_VERSION: ${{ inputs.pg_version || '17' }}
-      DURATION: ${{ inputs.bench_duration || '5m' }}
+      DURATION: ${{ inputs.bench_duration || '25m' }}
       WAREHOUSES: ${{ matrix.warehouses }}
       VUS_SCALE: ${{ inputs.vus_scale || '1' }}
       POOL_SIZE: ${{ inputs.pool_size || '100' }}
     steps:
+      - name: Clean up previous runs
+        run: |
+          pkill -9 postgres 2>/dev/null || true
+          rm -rf "$GITHUB_WORKSPACE/pgdata" 2>/dev/null || true
+          sleep 1
       - name: Checkout extension code (head branch)
         uses: actions/checkout@v4
         with:
@@ -164,6 +178,7 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-head-${{ matrix.warehouses }}W-${{ matrix.run }}
+          k6-args: '--out opentelemetry'
       - name: Stop PostgreSQL
         if: always()
         run: bash ./orioledb/ci/perf_pg_stop.sh
@@ -195,8 +210,8 @@ jobs:
             --base-dir results-base/ \
             --head-dir results-head/ \
             --runs "${{ inputs.bench_runs || '1' }}" \
-            --duration "${{ inputs.bench_duration || '5m' }}" \
-            --warehouses "${{ inputs.warehouses || '1' }}" \
+            --duration "${{ inputs.bench_duration || '25m' }}" \
+            --warehouses "${{ inputs.warehouses || '200' }}" \
             --vus-scale "${{ inputs.vus_scale || '1' }}" \
             --pool-size "${{ inputs.pool_size || '100' }}" \
             --output comment.md

@@ -3,10 +3,6 @@ name: TPC-C Performance Test
 permissions:
   pull-requests: write
 
-concurrency:
-  group: perf-test
-  cancel-in-progress: false
-
 on:
   pull_request:
   workflow_dispatch:

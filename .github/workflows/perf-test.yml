@@ -117,7 +117,8 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-base-${{ matrix.warehouses }}W-${{ matrix.run }}
-          k6-args: "--out opentelemetry ${{ env.DB_CACHED == 'true' && '--steps workload' || '' }}"
+          k6-args: '--out opentelemetry'
+          stroppy-args: ${{ env.DB_CACHED == 'true' && '--steps workload' || '' }}
       - name: Save DB cache
         if: env.DB_CACHED != 'true'
         run: bash ./orioledb/ci/perf_db_cache.sh save
@@ -185,7 +186,8 @@ jobs:
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-head-${{ matrix.warehouses }}W-${{ matrix.run }}
-          k6-args: "--out opentelemetry ${{ env.DB_CACHED == 'true' && '--steps workload' || '' }}"
+          k6-args: '--out opentelemetry'
+          stroppy-args: ${{ env.DB_CACHED == 'true' && '--steps workload' || '' }}
       - name: Save DB cache
         if: env.DB_CACHED != 'true'
         run: bash ./orioledb/ci/perf_db_cache.sh save

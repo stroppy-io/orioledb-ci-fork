@@ -1,4 +1,5 @@
 #!/bin/bash
+# Cache/restore pgdata for TPC-C benchmarks
 set -eux
 
 # Cache/restore pgdata to skip TPC-C data loading on repeated runs.

@@ -65,7 +65,6 @@ jobs:
     runs-on: perf-runner
     strategy:
       matrix: ${{ fromJson(needs.setup.outputs.run-matrix) }}
-      max-parallel: 1
     env:
       LLVM_VER: 18
       CHECK_TYPE: normal
@@ -134,7 +133,6 @@ jobs:
     runs-on: perf-runner
     strategy:
       matrix: ${{ fromJson(needs.setup.outputs.run-matrix) }}
-      max-parallel: 1
     env:
       LLVM_VER: 18
       CHECK_TYPE: normal

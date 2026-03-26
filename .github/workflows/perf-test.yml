@@ -127,9 +127,7 @@ jobs:
 
   bench-head:
     name: "Bench head ${{ matrix.warehouses }}W #${{ matrix.run }}"
-    needs:
-      - setup
-      - bench-base
+    needs: setup
     runs-on: perf-runner
     strategy:
       matrix: ${{ fromJson(needs.setup.outputs.run-matrix) }}

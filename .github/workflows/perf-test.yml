@@ -113,6 +113,7 @@ jobs:
       - name: Run TPC-C benchmark
         uses: stroppy-io/stroppy-action@main
         with:
+          version: '3'
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-base-${{ matrix.warehouses }}W-${{ matrix.run }}
@@ -179,6 +180,7 @@ jobs:
       - name: Run TPC-C benchmark
         uses: stroppy-io/stroppy-action@main
         with:
+          version: '3'
           preset: tpcc
           driver-url: postgres://${{ env.PGUSER }}@localhost:5432/postgres?sslmode=disable
           artifact-name: perf-results-head-${{ matrix.warehouses }}W-${{ matrix.run }}
